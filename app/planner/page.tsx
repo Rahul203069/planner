@@ -47,6 +47,15 @@ type ActionState = {
   message: string;
 };
 
+type PlannerTask = {
+  id: string;
+  title: string;
+  category: "SAAS" | "DSA" | "CLASSWORK";
+  status: "OPEN" | "COMPLETED" | "FAILED";
+  startMinutes: number;
+  durationMinutes: number;
+};
+
 type OccupiedRange = {
   title: string;
   startMinutes: number;
@@ -293,7 +302,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
     };
   });
 
-  const tasks = await prisma.task.findMany({
+  const tasks: PlannerTask[] = await prisma.task.findMany({
     where: {
       userId,
       scheduledDate: dateKey,
@@ -529,7 +538,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
             classBlocks={classBlocks}
             dayName={dayName}
             deleteTaskAction={deleteTask}
-            tasks={tasks.map((task) => ({
+            tasks={tasks.map((task: PlannerTask) => ({
               id: task.id,
               title: task.title,
               category: task.category,
