@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TaskCategory {
+  SAAS
+  DSA
+  CLASSWORK
+}
+
+enum TaskStatus {
+  OPEN
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id                            String    @id @default(cuid())
+  name                          String?
+  email                         String    @unique
+  emailVerified                 DateTime?
+  image                         String?
+  hasCompletedTimetableOnboarding Boolean @default(false)
+  selectedGroup                 String?
+  rawTimetable                  Json?
+  timetable                     Json?
+  timetableUploadedAt           DateTime?
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+  accounts                      Account[]
+  sessions                      Session[]
+  tasks                         Task[]
+}
+
+model Task {
+  id              String       @id @default(cuid())
+  userId          String
+  title           String
+  category        TaskCategory
+  status          TaskStatus   @default(OPEN)
+  scheduledDate   String
+  startMinutes    Int
+  durationMinutes Int
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledDate])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@unique([token])
+}
