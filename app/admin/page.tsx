@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { isAdminEmail } from "@/lib/admin";
@@ -16,16 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type AdminUserRow = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    email: true;
-    hasCompletedTimetableOnboarding: true;
-    selectedGroup: true;
-    createdAt: true;
-  };
-}>;
+type AdminUserRow = {
+  id: string;
+  name: string | null;
+  email: string;
+  hasCompletedTimetableOnboarding: boolean;
+  selectedGroup: string | null;
+  createdAt: Date;
+};
 
 export default async function AdminPage() {
   const session = await auth();
