@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -120,7 +119,7 @@ export default async function TableViewPage() {
         email: userEmail,
       },
       data: {
-        timetable: updatedTimetable as Prisma.InputJsonValue,
+        timetable: JSON.parse(JSON.stringify(updatedTimetable)),
       },
     });
 

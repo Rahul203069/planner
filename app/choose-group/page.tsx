@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -101,7 +100,7 @@ export default async function ChooseGroupPage() {
       },
       data: {
         selectedGroup: group,
-        timetable: filteredTimetable as Prisma.InputJsonValue,
+        timetable: JSON.parse(JSON.stringify(filteredTimetable)),
         hasCompletedTimetableOnboarding: true,
       },
     });
