@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { TaskCategory, TaskStatus } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -15,6 +14,9 @@ type TimetableClass = {
 type TimetableData = {
   days?: Record<string, TimetableClass[]>;
 };
+
+type TaskCategoryValue = "SAAS" | "DSA" | "CLASSWORK";
+type TaskStatusValue = "OPEN" | "COMPLETED" | "FAILED";
 
 function parseTimeToMinutes(value: string): number | null {
   const normalized = value.trim().toUpperCase();
@@ -197,9 +199,13 @@ export default async function DashboardPage() {
   const timetable = user.timetable as TimetableData;
   const { dateKey: todayDateKey, currentMinutes } = getCurrentDateTimeInIndia();
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((task) => task.status === TaskStatus.COMPLETED);
-  const failedTasks = tasks.filter((task) => task.status === TaskStatus.FAILED);
-  const openTasks = tasks.filter((task) => task.status === TaskStatus.OPEN);
+  const completedTasks = tasks.filter(
+    (task) => task.status === ("COMPLETED" as TaskStatusValue)
+  );
+  const failedTasks = tasks.filter(
+    (task) => task.status === ("FAILED" as TaskStatusValue)
+  );
+  const openTasks = tasks.filter((task) => task.status === ("OPEN" as TaskStatusValue));
   const successRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0;
   const streak = computeCurrentStreak([...new Set(tasks.map((task) => task.scheduledDate))]);
 
@@ -216,8 +222,12 @@ export default async function DashboardPage() {
 
     return {
       day: day.shortDay,
-      completed: dailyTasks.filter((task) => task.status === TaskStatus.COMPLETED).length,
-      failed: dailyTasks.filter((task) => task.status === TaskStatus.FAILED).length,
+      completed: dailyTasks.filter(
+        (task) => task.status === ("COMPLETED" as TaskStatusValue)
+      ).length,
+      failed: dailyTasks.filter(
+        (task) => task.status === ("FAILED" as TaskStatusValue)
+      ).length,
     };
   });
 
@@ -237,21 +247,21 @@ export default async function DashboardPage() {
       name: "SaaS",
       key: "saas",
       minutes: tasks
-        .filter((task) => task.category === TaskCategory.SAAS)
+        .filter((task) => task.category === ("SAAS" as TaskCategoryValue))
         .reduce((sum, task) => sum + task.durationMinutes, 0),
     },
     {
       name: "DSA",
       key: "dsa",
       minutes: tasks
-        .filter((task) => task.category === TaskCategory.DSA)
+        .filter((task) => task.category === ("DSA" as TaskCategoryValue))
         .reduce((sum, task) => sum + task.durationMinutes, 0),
     },
     {
       name: "Classwork",
       key: "classwork",
       minutes: tasks
-        .filter((task) => task.category === TaskCategory.CLASSWORK)
+        .filter((task) => task.category === ("CLASSWORK" as TaskCategoryValue))
         .reduce((sum, task) => sum + task.durationMinutes, 0),
     },
   ];
@@ -279,7 +289,7 @@ export default async function DashboardPage() {
       actual: Number(
         (
           tasks
-            .filter((task) => task.category === TaskCategory.SAAS)
+            .filter((task) => task.category === ("SAAS" as TaskCategoryValue))
             .reduce((sum, task) => sum + task.durationMinutes, 0) /
           activeDaysCount /
           60
@@ -292,7 +302,7 @@ export default async function DashboardPage() {
       actual: Number(
         (
           tasks
-            .filter((task) => task.category === TaskCategory.DSA)
+            .filter((task) => task.category === ("DSA" as TaskCategoryValue))
             .reduce((sum, task) => sum + task.durationMinutes, 0) /
           activeDaysCount /
           60
@@ -305,7 +315,7 @@ export default async function DashboardPage() {
       actual: Number(
         (
           tasks
-            .filter((task) => task.category === TaskCategory.CLASSWORK)
+            .filter((task) => task.category === ("CLASSWORK" as TaskCategoryValue))
             .reduce((sum, task) => sum + task.durationMinutes, 0) /
           activeDaysCount /
           60
@@ -350,7 +360,7 @@ export default async function DashboardPage() {
 
   const currentTasks = tasks
     .filter((task) => {
-      if (task.status !== TaskStatus.OPEN || task.scheduledDate !== todayDateKey) {
+      if (task.status !== ("OPEN" as TaskStatusValue) || task.scheduledDate !== todayDateKey) {
         return false;
       }
 
@@ -361,7 +371,7 @@ export default async function DashboardPage() {
 
   const upcomingTasks = tasks
     .filter((task) => {
-      if (task.status !== TaskStatus.OPEN) {
+      if (task.status !== ("OPEN" as TaskStatusValue)) {
         return false;
       }
 
