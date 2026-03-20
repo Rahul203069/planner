@@ -17,6 +17,15 @@ type TimetableData = {
 
 type TaskCategoryValue = "SAAS" | "DSA" | "CLASSWORK";
 type TaskStatusValue = "OPEN" | "COMPLETED" | "FAILED";
+type DashboardTask = {
+  id: string;
+  title: string;
+  category: TaskCategoryValue;
+  status: TaskStatusValue;
+  scheduledDate: string;
+  startMinutes: number;
+  durationMinutes: number;
+};
 
 function parseTimeToMinutes(value: string): number | null {
   const normalized = value.trim().toUpperCase();
@@ -187,7 +196,7 @@ export default async function DashboardPage() {
     redirect("/app");
   }
 
-  const tasks = await prisma.task.findMany({
+  const tasks: DashboardTask[] = await prisma.task.findMany({
     where: {
       userId: user.id,
     },
@@ -200,20 +209,24 @@ export default async function DashboardPage() {
   const { dateKey: todayDateKey, currentMinutes } = getCurrentDateTimeInIndia();
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(
-    (task) => task.status === ("COMPLETED" as TaskStatusValue)
+    (task: DashboardTask) => task.status === ("COMPLETED" as TaskStatusValue)
   );
   const failedTasks = tasks.filter(
-    (task) => task.status === ("FAILED" as TaskStatusValue)
+    (task: DashboardTask) => task.status === ("FAILED" as TaskStatusValue)
   );
-  const openTasks = tasks.filter((task) => task.status === ("OPEN" as TaskStatusValue));
+  const openTasks = tasks.filter(
+    (task: DashboardTask) => task.status === ("OPEN" as TaskStatusValue)
+  );
   const successRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0;
-  const streak = computeCurrentStreak([...new Set(tasks.map((task) => task.scheduledDate))]);
+  const streak = computeCurrentStreak([
+    ...new Set(tasks.map((task: DashboardTask) => task.scheduledDate)),
+  ]);
 
   const recentDays = buildRecentDays(7);
   const recentTaskMap = new Map(
     recentDays.map((day) => [
       day.dateKey,
-      tasks.filter((task) => task.scheduledDate === day.dateKey),
+      tasks.filter((task: DashboardTask) => task.scheduledDate === day.dateKey),
     ])
   );
 
@@ -223,10 +236,10 @@ export default async function DashboardPage() {
     return {
       day: day.shortDay,
       completed: dailyTasks.filter(
-        (task) => task.status === ("COMPLETED" as TaskStatusValue)
+        (task: DashboardTask) => task.status === ("COMPLETED" as TaskStatusValue)
       ).length,
       failed: dailyTasks.filter(
-        (task) => task.status === ("FAILED" as TaskStatusValue)
+        (task: DashboardTask) => task.status === ("FAILED" as TaskStatusValue)
       ).length,
     };
   });
@@ -237,7 +250,10 @@ export default async function DashboardPage() {
   }, 0);
   const recentTaskMinutes = recentDays.reduce((total, day) => {
     const dailyTasks = recentTaskMap.get(day.dateKey) ?? [];
-    return total + dailyTasks.reduce((sum, task) => sum + task.durationMinutes, 0);
+    return total + dailyTasks.reduce(
+      (sum: number, task: DashboardTask) => sum + task.durationMinutes,
+      0
+    );
   }, 0);
   const usedFreeTimePercentage =
     recentFreeMinutes > 0 ? (recentTaskMinutes / recentFreeMinutes) * 100 : 0;
@@ -247,29 +263,33 @@ export default async function DashboardPage() {
       name: "SaaS",
       key: "saas",
       minutes: tasks
-        .filter((task) => task.category === ("SAAS" as TaskCategoryValue))
-        .reduce((sum, task) => sum + task.durationMinutes, 0),
+        .filter((task: DashboardTask) => task.category === ("SAAS" as TaskCategoryValue))
+        .reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0),
     },
     {
       name: "DSA",
       key: "dsa",
       minutes: tasks
-        .filter((task) => task.category === ("DSA" as TaskCategoryValue))
-        .reduce((sum, task) => sum + task.durationMinutes, 0),
+        .filter((task: DashboardTask) => task.category === ("DSA" as TaskCategoryValue))
+        .reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0),
     },
     {
       name: "Classwork",
       key: "classwork",
       minutes: tasks
-        .filter((task) => task.category === ("CLASSWORK" as TaskCategoryValue))
-        .reduce((sum, task) => sum + task.durationMinutes, 0),
+        .filter((task: DashboardTask) => task.category === ("CLASSWORK" as TaskCategoryValue))
+        .reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0),
     },
   ];
   const totalTrackedMinutes = energySplitSource.reduce(
-    (sum, item) => sum + item.minutes,
+    (sum: number, item: { minutes: number }) => sum + item.minutes,
     0
   );
-  const energySplit = energySplitSource.map((item) => ({
+  const energySplit = energySplitSource.map((item: {
+    name: string;
+    key: string;
+    minutes: number;
+  }) => ({
     name: item.name,
     value:
       totalTrackedMinutes > 0
@@ -278,10 +298,11 @@ export default async function DashboardPage() {
     fill: `var(--color-${item.key})`,
   }));
 
-  const activeDayKeys = [...new Set(tasks.map((task) => task.scheduledDate))];
+  const activeDayKeys = [...new Set(tasks.map((task: DashboardTask) => task.scheduledDate))];
   const activeDaysCount = activeDayKeys.length || 1;
   const avgDailyWorkMinutes = Math.round(
-    tasks.reduce((sum, task) => sum + task.durationMinutes, 0) / activeDaysCount
+    tasks.reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0) /
+      activeDaysCount
   );
   const avgCategoryHours = [
     {
@@ -289,8 +310,8 @@ export default async function DashboardPage() {
       actual: Number(
         (
           tasks
-            .filter((task) => task.category === ("SAAS" as TaskCategoryValue))
-            .reduce((sum, task) => sum + task.durationMinutes, 0) /
+            .filter((task: DashboardTask) => task.category === ("SAAS" as TaskCategoryValue))
+            .reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0) /
           activeDaysCount /
           60
         ).toFixed(2)
@@ -302,8 +323,8 @@ export default async function DashboardPage() {
       actual: Number(
         (
           tasks
-            .filter((task) => task.category === ("DSA" as TaskCategoryValue))
-            .reduce((sum, task) => sum + task.durationMinutes, 0) /
+            .filter((task: DashboardTask) => task.category === ("DSA" as TaskCategoryValue))
+            .reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0) /
           activeDaysCount /
           60
         ).toFixed(2)
@@ -315,8 +336,8 @@ export default async function DashboardPage() {
       actual: Number(
         (
           tasks
-            .filter((task) => task.category === ("CLASSWORK" as TaskCategoryValue))
-            .reduce((sum, task) => sum + task.durationMinutes, 0) /
+            .filter((task: DashboardTask) => task.category === ("CLASSWORK" as TaskCategoryValue))
+            .reduce((sum: number, task: DashboardTask) => sum + task.durationMinutes, 0) /
           activeDaysCount /
           60
         ).toFixed(2)
@@ -359,7 +380,7 @@ export default async function DashboardPage() {
   ];
 
   const currentTasks = tasks
-    .filter((task) => {
+    .filter((task: DashboardTask) => {
       if (task.status !== ("OPEN" as TaskStatusValue) || task.scheduledDate !== todayDateKey) {
         return false;
       }
@@ -370,7 +391,7 @@ export default async function DashboardPage() {
     .slice(0, 5);
 
   const upcomingTasks = tasks
-    .filter((task) => {
+    .filter((task: DashboardTask) => {
       if (task.status !== ("OPEN" as TaskStatusValue)) {
         return false;
       }
@@ -383,7 +404,7 @@ export default async function DashboardPage() {
         task.scheduledDate === todayDateKey && task.startMinutes > currentMinutes
       );
     })
-    .sort((left, right) => {
+    .sort((left: DashboardTask, right: DashboardTask) => {
       if (left.scheduledDate === right.scheduledDate) {
         return left.startMinutes - right.startMinutes;
       }
@@ -393,7 +414,7 @@ export default async function DashboardPage() {
     .slice(0, 5);
 
   const recentCompletedTasks = [...completedTasks]
-    .sort((left, right) => {
+    .sort((left: DashboardTask, right: DashboardTask) => {
       if (left.scheduledDate === right.scheduledDate) {
         return right.startMinutes - left.startMinutes;
       }
