@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { isAdminEmail } from "@/lib/admin";
@@ -14,6 +15,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+type AdminUserRow = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    email: true;
+    hasCompletedTimetableOnboarding: true;
+    selectedGroup: true;
+    createdAt: true;
+  };
+}>;
 
 export default async function AdminPage() {
   const session = await auth();
@@ -32,7 +44,7 @@ export default async function AdminPage() {
 
   const adminEmail = session.user.email;
 
-  const users = await prisma.user.findMany({
+  const users: AdminUserRow[] = await prisma.user.findMany({
     orderBy: {
       createdAt: "desc",
     },
@@ -134,7 +146,7 @@ export default async function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users.map((user: AdminUserRow) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium text-foreground">
                     {user.name ?? "-"}
