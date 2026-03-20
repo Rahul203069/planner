@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { TimetableUploadSubmitButton } from "@/components/timetable-upload-submit-button";
@@ -61,8 +60,8 @@ export default async function AppEntryPage() {
       data: {
         hasCompletedTimetableOnboarding: false,
         selectedGroup: null,
-        rawTimetable: parsedTimetable as Prisma.InputJsonValue,
-        timetable: Prisma.JsonNull,
+        rawTimetable: JSON.parse(JSON.stringify(parsedTimetable)),
+        timetable: null,
         timetableUploadedAt: new Date(),
       },
     });
