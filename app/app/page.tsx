@@ -38,7 +38,6 @@ export default async function AppEntryPage() {
 
   const userId = user.id;
   const userEmail = user.email;
-  const userName = user.name;
   const userTimetable = user.timetable;
   const hasCompletedTimetableOnboarding = user.hasCompletedTimetableOnboarding;
 
@@ -135,37 +134,5 @@ export default async function AppEntryPage() {
     redirect("/choose-group");
   }
 
-  return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-2xl rounded-[2rem] border border-border/70 bg-card/85 p-8 text-center shadow-xl shadow-black/5 backdrop-blur">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-          PlannerPro App
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Welcome back{userName ? `, ${userName}` : ""}.
-        </h1>
-        <p className="mt-4 text-base leading-7 text-muted-foreground">
-          You are signed in with Google as {userEmail}.
-        </p>
-        <pre className="mt-6 overflow-x-auto rounded-2xl border border-border/70 bg-background/80 p-4 text-left text-xs leading-6 text-foreground">
-          {JSON.stringify(userTimetable, null, 2)}
-        </pre>
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <Link href="/table-view">
-            <Button size="lg">View Timetable</Button>
-          </Link>
-          <Link href="/">
-            <Button variant="outline" size="lg">
-              Back Home
-            </Button>
-          </Link>
-          <Link href="/api/auth/signout?callbackUrl=%2F">
-            <Button size="lg">
-              Sign Out
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </main>
-  );
+  redirect("/dashboard");
 }

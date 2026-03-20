@@ -22,7 +22,7 @@ export function GoogleSignInButton({
       className={className}
       size={size}
       variant={variant}
-      onClick={() => signIn("google", { callbackUrl: "/app" })}
+      onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
     >
       {children}
     </Button>

@@ -21,7 +21,7 @@ export default async function Home() {
           </p>
         </div>
         {session ? (
-          <Link href="/app">
+          <Link href="/dashboard">
             <Button size="sm">Open App</Button>
           </Link>
         ) : (
@@ -46,7 +46,7 @@ export default async function Home() {
           </div>
           <div className="flex flex-wrap gap-3 pt-2">
             {session ? (
-              <Link href="/app">
+              <Link href="/dashboard">
                 <Button
                   size="lg"
                   className="h-13 rounded-2xl px-6 text-base font-semibold shadow-lg shadow-primary/25"
