@@ -63,7 +63,7 @@ export default async function AppEntryPage() {
         rawTimetable: JSON.parse(JSON.stringify(parsedTimetable)),
         timetable: null,
         timetableUploadedAt: new Date(),
-      },
+      } as never,
     });
 
     revalidatePath("/app");
