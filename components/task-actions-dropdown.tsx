@@ -24,6 +24,7 @@ type TaskActionsDropdownProps = {
     taskId: string,
     status: "OPEN" | "COMPLETED" | "FAILED"
   ) => void;
+  onTaskCompleted: () => void;
   updateTaskStatus: (formData: FormData) => Promise<void>;
   deleteTask: (formData: FormData) => Promise<void>;
 };
@@ -32,6 +33,7 @@ export function TaskActionsDropdown({
   task,
   onOptimisticDelete,
   onOptimisticStatusChange,
+  onTaskCompleted,
   updateTaskStatus,
   deleteTask,
 }: TaskActionsDropdownProps) {
@@ -39,6 +41,10 @@ export function TaskActionsDropdown({
 
   function runStatusAction(nextStatus: "OPEN" | "COMPLETED" | "FAILED") {
     onOptimisticStatusChange(task.id, nextStatus);
+
+    if (nextStatus === "COMPLETED" && task.status !== "COMPLETED") {
+      onTaskCompleted();
+    }
 
     startTransition(async () => {
       const formData = new FormData();

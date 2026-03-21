@@ -10,6 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { PlannerToastListener } from "@/components/planner-toast-listener";
 import { PlannerWorkspace } from "@/components/planner-workspace";
 import { Button } from "@/components/ui/button";
+import type { CelebrationSoundPreference } from "@/lib/celebration-sound";
 import { prisma } from "@/lib/prisma";
 
 type TimetableClass = {
@@ -259,6 +260,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       email: true,
       name: true,
       selectedGroup: true,
+      celebrationSound: true,
       hasCompletedTimetableOnboarding: true,
       timetable: true,
     },
@@ -272,6 +274,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
   const userEmail = user.email;
   const userName = user.name;
   const userTimetable = user.timetable;
+  const celebrationSound = user.celebrationSound as CelebrationSoundPreference;
   const hasCompletedTimetableOnboarding = user.hasCompletedTimetableOnboarding;
 
   if (!hasCompletedTimetableOnboarding || !userTimetable) {
@@ -365,6 +368,55 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       where: {
         id: taskId,
         userId,
+      },
+    });
+
+    revalidatePath("/planner");
+  }
+
+  async function extendTaskDuration(formData: FormData) {
+    "use server";
+
+    const taskId = formData.get("taskId");
+    const minutesValue = formData.get("minutes");
+
+    if (typeof taskId !== "string" || typeof minutesValue !== "string") {
+      throw new Error("Invalid task duration update request.");
+    }
+
+    const extraMinutes = Number(minutesValue);
+
+    if (!Number.isInteger(extraMinutes) || extraMinutes === 0) {
+      throw new Error("Invalid task extension amount.");
+    }
+
+    const existingTask = await prisma.task.findUnique({
+      where: {
+        id: taskId,
+        userId,
+      },
+      select: {
+        durationMinutes: true,
+      },
+    });
+
+    if (!existingTask) {
+      throw new Error("Task not found.");
+    }
+
+    const nextDuration = existingTask.durationMinutes + extraMinutes;
+
+    if (nextDuration < 10) {
+      throw new Error("Task duration cannot be less than 10 minutes.");
+    }
+
+    await prisma.task.update({
+      where: {
+        id: taskId,
+        userId,
+      },
+      data: {
+        durationMinutes: nextDuration,
       },
     });
 
@@ -535,8 +587,10 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
             addQuickTaskAction={addQuickTask}
             categories={plannerCategories}
             classBlocks={classBlocks}
+            celebrationSound={celebrationSound}
             dayName={dayName}
             deleteTaskAction={deleteTask}
+            extendTaskDurationAction={extendTaskDuration}
             tasks={tasks.map((task: PlannerTask) => ({
               id: task.id,
               title: task.title,
