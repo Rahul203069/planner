@@ -1,12 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  CalendarDays,
   Plus,
 } from "lucide-react";
 
 import { auth } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
+import { PlannerDatePicker } from "@/components/planner-date-picker";
 import { PlannerToastListener } from "@/components/planner-toast-listener";
 import { PlannerWorkspace } from "@/components/planner-workspace";
 import { Button } from "@/components/ui/button";
@@ -199,23 +199,33 @@ function findOverlappingRange(
   });
 }
 
-function getTodayMetadata() {
+function isValidDateKey(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function getPlannerDateMetadata(targetDateKey?: string) {
   const now = new Date();
+  const todayDateKey = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+  }).format(now);
+  const effectiveDateKey =
+    targetDateKey && isValidDateKey(targetDateKey) ? targetDateKey : todayDateKey;
+  const [yearValue, monthValue, dayValue] = effectiveDateKey.split("-");
+  const plannerDate = new Date(
+    Date.UTC(Number(yearValue), Number(monthValue) - 1, Number(dayValue), 12)
+  );
   const dayName = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     timeZone: "Asia/Kolkata",
-  }).format(now);
+  }).format(plannerDate);
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     timeZone: "Asia/Kolkata",
-  }).format(now);
-  const dateKey = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Kolkata",
-  }).format(now);
+  }).format(plannerDate);
 
-  return { dayName, dateKey, dateLabel };
+  return { dayName, dateKey: effectiveDateKey, dateLabel, todayDateKey };
 }
 
 function getCurrentMinutesInIndia() {
@@ -235,6 +245,7 @@ function getCurrentMinutesInIndia() {
 
 type PlannerPageProps = {
   searchParams?: Promise<{
+    date?: string;
     status?: string;
     message?: string;
   }>;
@@ -282,7 +293,11 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
   }
 
   const timetable = userTimetable as TimetableData;
-  const { dayName, dateKey, dateLabel } = getTodayMetadata();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const requestedDate = resolvedSearchParams?.date;
+  const { dayName, dateKey, dateLabel, todayDateKey } =
+    getPlannerDateMetadata(requestedDate);
+  const isSelectedDateToday = dateKey === todayDateKey;
   const todaysClasses = (timetable.days?.[dayName] ?? []).filter((entry) => {
     const startMinutes = parseTimeToMinutes(entry.start_time);
     const endMinutes = parseTimeToMinutes(entry.end_time);
@@ -324,7 +339,6 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
     (sum, block) => sum + block.durationMinutes,
     0
   );
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const status = resolvedSearchParams?.status === "error" ? "error" : resolvedSearchParams?.status === "success" ? "success" : null;
   const message = resolvedSearchParams?.message;
 
@@ -460,7 +474,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       };
     }
 
-    if (startMinutes <= getCurrentMinutesInIndia()) {
+    if (isSelectedDateToday && startMinutes <= getCurrentMinutesInIndia()) {
       return {
         status: "error",
         message: "Choose a future time slot after the current time.",
@@ -528,13 +542,11 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm">
-                  <CalendarDays className="size-4" />
-                  Today
-                </Button>
-                <Button variant="outline" size="sm">
-                  Tomorrow
-                </Button>
+                <PlannerDatePicker
+                  selectedDate={dateKey}
+                  selectedDateLabel={dateLabel}
+                  todayDate={todayDateKey}
+                />
                 <Button size="sm">
                   <Plus className="size-4" />
                   Add Task
@@ -591,6 +603,8 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
             dayName={dayName}
             deleteTaskAction={deleteTask}
             extendTaskDurationAction={extendTaskDuration}
+            isSelectedDateToday={isSelectedDateToday}
+            selectedDateLabel={dateLabel}
             tasks={tasks.map((task: PlannerTask) => ({
               id: task.id,
               title: task.title,

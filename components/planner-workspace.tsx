@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Brain,
   BriefcaseBusiness,
+  CalendarDays,
   Clock3,
   Filter,
   NotebookPen,
@@ -74,6 +75,8 @@ type PlannerWorkspaceProps = {
   celebrationSound: CelebrationSoundPreference;
   dayName: string;
   deleteTaskAction: (formData: FormData) => Promise<void>;
+  isSelectedDateToday: boolean;
+  selectedDateLabel: string;
   tasks: PlannerTask[];
   timeSlots: TimelineSlot[];
   extendTaskDurationAction: (formData: FormData) => Promise<void>;
@@ -213,6 +216,8 @@ export function PlannerWorkspace({
   celebrationSound,
   dayName,
   deleteTaskAction,
+  isSelectedDateToday,
+  selectedDateLabel,
   extendTaskDurationAction,
   tasks,
   timeSlots,
@@ -293,16 +298,18 @@ export function PlannerWorkspace({
 
   const activeTask = React.useMemo(
     () =>
-      optimisticTasks.find((task) => {
-        const endMinutes = task.startMinutes + task.durationMinutes;
+      isSelectedDateToday
+        ? optimisticTasks.find((task) => {
+            const endMinutes = task.startMinutes + task.durationMinutes;
 
-        return (
-          task.status === "OPEN" &&
-          currentMinutes >= task.startMinutes &&
-          currentMinutes < endMinutes
-        );
-      }),
-    [currentMinutes, optimisticTasks]
+            return (
+              task.status === "OPEN" &&
+              currentMinutes >= task.startMinutes &&
+              currentMinutes < endMinutes
+            );
+          })
+        : undefined,
+    [currentMinutes, isSelectedDateToday, optimisticTasks]
   );
 
   const nextOpenTask = React.useMemo(
@@ -513,6 +520,7 @@ export function PlannerWorkspace({
         <PlannerTimeline
           classBlocks={[...classBlocks, ...taskBlocks]}
           dayName={dayName}
+          isCurrentDay={isSelectedDateToday}
           timeSlots={timeSlots}
         />
 
@@ -522,10 +530,14 @@ export function PlannerWorkspace({
               Now Working
             </p>
             <h3 className="mt-2 text-lg font-semibold text-foreground">
-              {activeTask ? activeTask.title : "No task is active right now"}
+              {isSelectedDateToday
+                ? activeTask
+                  ? activeTask.title
+                  : "No task is active right now"
+                : `Viewing ${selectedDateLabel}`}
             </h3>
 
-            {activeTask ? (
+            {isSelectedDateToday && activeTask ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-[1.35rem] border border-primary/25 bg-primary/8 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -592,7 +604,7 @@ export function PlannerWorkspace({
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : isSelectedDateToday ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-[1.35rem] border border-dashed border-border/70 bg-card p-4">
                   <p className="text-sm font-semibold text-foreground">
@@ -624,6 +636,40 @@ export function PlannerWorkspace({
                     </p>
                     <p className="mt-2 text-base font-semibold text-foreground">
                       {nextOpenTask ? nextOpenTask.title : "Nothing queued"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div className="rounded-[1.35rem] border border-dashed border-border/70 bg-card p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    You are browsing a saved planner day.
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Live countdowns and in-progress task state only appear for the
+                    current date. You can still review tasks, classes, and update
+                    statuses for {selectedDateLabel}.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                    <CalendarDays className="size-5 text-primary" />
+                    <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Selected Date
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-foreground">
+                      {selectedDateLabel}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                    <PlayCircle className="size-5 text-primary" />
+                    <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Open Tasks
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-foreground">
+                      {optimisticTasks.filter((task) => task.status === "OPEN").length}
                     </p>
                   </div>
                 </div>

@@ -68,10 +68,16 @@ function getCurrentMinutesInIndia() {
 type PlannerTimelineProps = {
   classBlocks: TimelineClassBlock[];
   dayName: string;
+  isCurrentDay: boolean;
   timeSlots: TimelineSlot[];
 };
 
-export function PlannerTimeline({ classBlocks, dayName, timeSlots }: PlannerTimelineProps) {
+export function PlannerTimeline({
+  classBlocks,
+  dayName,
+  isCurrentDay,
+  timeSlots,
+}: PlannerTimelineProps) {
   const [currentMinutes, setCurrentMinutes] = React.useState(() =>
     getCurrentMinutesInIndia()
   );
@@ -134,18 +140,20 @@ export function PlannerTimeline({ classBlocks, dayName, timeSlots }: PlannerTime
               </div>
             ))}
 
-            <div
-              className="pointer-events-none absolute left-0 right-3 z-20 flex items-center gap-2"
-              style={{
-                top: `${(currentMinutes / 60) * HOUR_HEIGHT + 6}px`,
-              }}
-            >
-              <span className="inline-flex rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                {formatMinutesToTwelveHour(currentMinutes)}
-              </span>
-              <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.18)]" />
-              <div className="h-px flex-1 bg-red-500" />
-            </div>
+            {isCurrentDay ? (
+              <div
+                className="pointer-events-none absolute left-0 right-3 z-20 flex items-center gap-2"
+                style={{
+                  top: `${(currentMinutes / 60) * HOUR_HEIGHT + 6}px`,
+                }}
+              >
+                <span className="inline-flex rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                  {formatMinutesToTwelveHour(currentMinutes)}
+                </span>
+                <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.18)]" />
+                <div className="h-px flex-1 bg-red-500" />
+              </div>
+            ) : null}
 
             {classBlocks.map((block) => (
               <div
