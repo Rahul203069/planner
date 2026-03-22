@@ -346,6 +346,7 @@ export function PlannerWorkspace({
           <PlannerQuickAddForm
             categories={categories}
             occupiedRanges={occupiedRanges}
+            isSelectedDateToday={isSelectedDateToday}
             addQuickTaskAction={addQuickTaskAction}
             onOptimisticAdd={(task) => {
               updateOptimisticTasks({ type: "add", task });

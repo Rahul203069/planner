@@ -29,6 +29,7 @@ type PlannerCategory = {
 type PlannerQuickAddFormProps = {
   categories: readonly PlannerCategory[];
   occupiedRanges: OccupiedRange[];
+  isSelectedDateToday: boolean;
   addQuickTaskAction: (
     previousState: ActionState,
     formData: FormData
@@ -106,6 +107,7 @@ function getCurrentMinutesInIndia() {
 export function PlannerQuickAddForm({
   categories,
   occupiedRanges,
+  isSelectedDateToday,
   addQuickTaskAction,
   onOptimisticAdd,
 }: PlannerQuickAddFormProps) {
@@ -134,7 +136,7 @@ export function PlannerQuickAddForm({
       return;
     }
 
-    if (startMinutes <= getCurrentMinutesInIndia()) {
+    if (isSelectedDateToday && startMinutes <= getCurrentMinutesInIndia()) {
       toast.error("Choose a future time slot after the current time.");
       return;
     }
