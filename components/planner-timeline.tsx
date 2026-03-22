@@ -12,6 +12,7 @@ type TimelineClassBlock = {
   durationMinutes: number;
   type: "class" | "task";
   status?: "OPEN" | "COMPLETED" | "FAILED";
+  failureReason?: string | null;
 };
 
 type TimelineSlot = {
@@ -192,6 +193,13 @@ export function PlannerTimeline({
                   ) : null}
                 </div>
                 <p className="mt-2 truncate text-[11px] opacity-80">{block.meta}</p>
+                {block.type === "task" &&
+                block.status === "FAILED" &&
+                block.failureReason ? (
+                  <p className="mt-1 break-words text-[11px] leading-4 opacity-80">
+                    Reason: {block.failureReason}
+                  </p>
+                ) : null}
               </div>
             ))}
 

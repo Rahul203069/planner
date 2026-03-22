@@ -34,6 +34,7 @@ type PlannerTask = {
   title: string;
   category: "SAAS" | "DSA" | "CLASSWORK";
   status: "OPEN" | "COMPLETED" | "FAILED";
+  failureReason: string | null;
   startMinutes: number;
   durationMinutes: number;
 };
@@ -47,6 +48,7 @@ type TimelineBlock = {
   durationMinutes: number;
   type: "class" | "task";
   status?: "OPEN" | "COMPLETED" | "FAILED";
+  failureReason?: string | null;
 };
 
 type OccupiedRange = {
@@ -88,7 +90,12 @@ type OptimisticAction =
   | { type: "delete"; taskId: string }
   | { type: "replace"; tasks: PlannerTask[] }
   | { type: "extend-duration"; taskId: string; minutes: number }
-  | { type: "update-status"; taskId: string; status: PlannerTask["status"] };
+  | {
+      type: "update-status";
+      taskId: string;
+      status: PlannerTask["status"];
+      failureReason: string | null;
+    };
 
 const taskFilters = ["All", "Open", "Completed", "Failed"];
 type TaskFilter = (typeof taskFilters)[number];
@@ -194,7 +201,13 @@ function optimisticReducer(tasks: PlannerTask[], action: OptimisticAction) {
 
   if (action.type === "update-status") {
     return tasks.map((task) =>
-      task.id === action.taskId ? { ...task, status: action.status } : task
+      task.id === action.taskId
+        ? {
+            ...task,
+            status: action.status,
+            failureReason: action.failureReason,
+          }
+        : task
     );
   }
 
@@ -266,6 +279,7 @@ export function PlannerWorkspace({
           durationMinutes: task.durationMinutes,
           type: "task",
           status: task.status,
+          failureReason: task.failureReason,
         })),
     [optimisticTasks]
   );
@@ -422,6 +436,11 @@ export function PlannerWorkspace({
                           <span>{formatDuration(task.durationMinutes)}</span>
                           <span>{categoryLabel}</span>
                         </div>
+                        {task.status === "FAILED" && task.failureReason ? (
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            Reason: {task.failureReason}
+                          </p>
+                        ) : null}
                       </div>
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -476,11 +495,16 @@ export function PlannerWorkspace({
                         onOptimisticDelete={(taskId) => {
                           updateOptimisticTasks({ type: "delete", taskId });
                         }}
-                        onOptimisticStatusChange={(taskId, status) => {
+                        onOptimisticStatusChange={(
+                          taskId,
+                          status,
+                          failureReason
+                        ) => {
                           updateOptimisticTasks({
                             type: "update-status",
                             taskId,
                             status,
+                            failureReason,
                           });
                         }}
                         onTaskCompleted={() => {

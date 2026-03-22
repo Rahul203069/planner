@@ -50,6 +50,7 @@ model Task {
   title           String
   category        TaskCategory
   status          TaskStatus   @default(OPEN)
+  failureReason   String?
   scheduledDate   String
   startMinutes    Int
   durationMinutes Int

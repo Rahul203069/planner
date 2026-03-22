@@ -52,6 +52,7 @@ type PlannerTask = {
   title: string;
   category: "SAAS" | "DSA" | "CLASSWORK";
   status: "OPEN" | "COMPLETED" | "FAILED";
+  failureReason: string | null;
   startMinutes: number;
   durationMinutes: number;
 };
@@ -347,6 +348,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
 
     const taskId = formData.get("taskId");
     const nextStatus = formData.get("status");
+    const failureReason = formData.get("failureReason");
 
     if (
       typeof taskId !== "string" ||
@@ -356,6 +358,13 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       throw new Error("Invalid task status request.");
     }
 
+    const normalizedFailureReason =
+      typeof failureReason === "string" ? failureReason.trim() : "";
+
+    if (nextStatus === "FAILED" && normalizedFailureReason.length < 3) {
+      throw new Error("Add a short reason before marking this task as failed.");
+    }
+
     await prisma.task.update({
       where: {
         id: taskId,
@@ -363,6 +372,8 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       },
       data: {
         status: nextStatus as "OPEN" | "COMPLETED" | "FAILED",
+        failureReason:
+          nextStatus === "FAILED" ? normalizedFailureReason : null,
       },
     });
 
@@ -610,6 +621,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
               title: task.title,
               category: task.category,
               status: task.status,
+              failureReason: task.failureReason,
               startMinutes: task.startMinutes,
               durationMinutes: task.durationMinutes,
             }))}

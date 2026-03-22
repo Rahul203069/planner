@@ -39,6 +39,7 @@ type PlannerQuickAddFormProps = {
     title: string;
     category: "SAAS" | "DSA" | "CLASSWORK";
     status: "OPEN";
+    failureReason: null;
     startMinutes: number;
     durationMinutes: number;
   }) => void;
@@ -164,6 +165,7 @@ export function PlannerQuickAddForm({
               ? "CLASSWORK"
               : "SAAS",
         status: "OPEN" as const,
+        failureReason: null,
         startMinutes,
         durationMinutes: endMinutes - startMinutes,
       };
