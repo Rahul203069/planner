@@ -365,6 +365,9 @@ export function PlannerWorkspace({
             onOptimisticAdd={(task) => {
               updateOptimisticTasks({ type: "add", task });
             }}
+            onOptimisticRemove={(taskId) => {
+              updateOptimisticTasks({ type: "delete", taskId });
+            }}
           />
         </div>
 

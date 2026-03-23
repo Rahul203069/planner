@@ -43,6 +43,7 @@ type PlannerQuickAddFormProps = {
     startMinutes: number;
     durationMinutes: number;
   }) => void;
+  onOptimisticRemove: (taskId: string) => void;
 };
 
 type OptimisticTask = Parameters<PlannerQuickAddFormProps["onOptimisticAdd"]>[0];
@@ -111,6 +112,7 @@ export function PlannerQuickAddForm({
   isSelectedDateToday,
   addQuickTaskAction,
   onOptimisticAdd,
+  onOptimisticRemove,
 }: PlannerQuickAddFormProps) {
   const formRef = React.useRef<HTMLFormElement | null>(null);
   const [isPending, startTransition] = React.useTransition();
@@ -155,8 +157,9 @@ export function PlannerQuickAddForm({
 
     startTransition(async () => {
       const categoryValue = formData.get("category");
+      const optimisticTaskId = `optimistic-${crypto.randomUUID()}`;
       const optimisticTask: OptimisticTask = {
-        id: `optimistic-${crypto.randomUUID()}`,
+        id: optimisticTaskId,
         title: title.trim(),
         category:
           categoryValue === "dsa"
@@ -172,19 +175,24 @@ export function PlannerQuickAddForm({
 
       onOptimisticAdd(optimisticTask);
 
-      const result = await addQuickTaskAction(
-        { status: "idle", message: "" },
-        formData
-      );
+      try {
+        const result = await addQuickTaskAction(
+          { status: "idle", message: "" },
+          formData
+        );
 
-      if (result.status === "success") {
-        toast.success(result.message);
-        formRef.current?.reset();
-        return;
+        if (result.status === "success") {
+          toast.success(result.message);
+          formRef.current?.reset();
+          return;
+        }
+
+        onOptimisticRemove(optimisticTaskId);
+        toast.error(result.message);
+      } catch {
+        onOptimisticRemove(optimisticTaskId);
+        toast.error("Could not add the task. Check the fields and try again.");
       }
-
-      toast.error(result.message);
-      window.location.reload();
     });
   }
 
