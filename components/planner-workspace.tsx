@@ -52,6 +52,7 @@ type TimelineBlock = {
 };
 
 type OccupiedRange = {
+  type: "class" | "task";
   title: string;
   startMinutes: number;
   durationMinutes: number;
@@ -302,11 +303,22 @@ export function PlannerWorkspace({
 
   const occupiedRanges = React.useMemo<OccupiedRange[]>(
     () =>
-      [...classBlocks, ...taskBlocks.filter((block) => block.status === "OPEN")].map((block) => ({
-        title: block.title,
-        startMinutes: block.startMinutes,
-        durationMinutes: block.durationMinutes,
-      })),
+      [
+        ...classBlocks.map((block) => ({
+          type: "class" as const,
+          title: block.title,
+          startMinutes: block.startMinutes,
+          durationMinutes: block.durationMinutes,
+        })),
+        ...taskBlocks
+          .filter((block) => block.status === "OPEN")
+          .map((block) => ({
+            type: "task" as const,
+            title: block.title,
+            startMinutes: block.startMinutes,
+            durationMinutes: block.durationMinutes,
+          })),
+      ],
     [classBlocks, taskBlocks]
   );
 

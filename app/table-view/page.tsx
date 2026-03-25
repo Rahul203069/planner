@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { auth } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -132,6 +133,15 @@ export default async function TableViewPage() {
 
       <section className="flex-1 p-6 lg:p-10">
         <div className="rounded-[2rem] border border-border/70 bg-card/85 p-6 shadow-xl shadow-black/5 backdrop-blur lg:p-8">
+          <div className="mb-6">
+            <Link href="/settings">
+              <Button size="lg" variant="outline">
+                <ArrowLeft className="size-4" />
+                Back to settings
+              </Button>
+            </Link>
+          </div>
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
@@ -223,8 +233,8 @@ export default async function TableViewPage() {
           </div>
 
           <div className="mt-8 flex items-center justify-end gap-3">
-            <Link href="/dashboard">
-              <Button size="sm">Continue</Button>
+            <Link href="/settings">
+              <Button size="sm" variant="outline">Back to settings</Button>
             </Link>
           </div>
         </div>

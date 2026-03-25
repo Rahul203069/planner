@@ -10,7 +10,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Table2,
 } from "lucide-react";
 
 import { ThemeToggleSwitch } from "@/components/theme-toggle-switch";
@@ -20,7 +19,6 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/planner", label: "Planner", icon: CalendarDays },
-  { href: "/table-view", label: "Timetable", icon: Table2 },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

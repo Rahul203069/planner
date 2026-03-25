@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ArrowRight, Table2 } from "lucide-react";
 
 import { auth } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -162,6 +164,34 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               <ThemePalettePicker />
             </div>
           </div>
+
+          <Link
+            href="/table-view"
+            className="mt-6 block rounded-[1.5rem] border border-border/70 bg-background/80 p-5 transition-colors hover:bg-background"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+                  <Table2 className="size-5" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                    Timetable
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-foreground">
+                    View your timetable
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Open the parsed weekly timetable and review your class schedule.
+                  </p>
+                </div>
+              </div>
+              <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                <span>Open timetable</span>
+                <ArrowRight className="size-4" />
+              </div>
+            </div>
+          </Link>
 
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-border/70 bg-background/70 p-5">
             <p className="text-sm font-semibold text-foreground">More settings later</p>

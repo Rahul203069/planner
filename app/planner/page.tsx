@@ -458,6 +458,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
     const category = formData.get("category");
     const startTime = formData.get("startTime");
     const endTime = formData.get("endTime");
+    const allowClassOverlap = formData.get("allowClassOverlap") === "true";
 
     if (
       typeof title !== "string" ||
@@ -498,7 +499,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       occupiedRanges
     );
 
-    if (overlappingRange) {
+    if (overlappingRange && !allowClassOverlap) {
       return {
         status: "error",
         message: `This overlaps with "${overlappingRange.title}".`,
