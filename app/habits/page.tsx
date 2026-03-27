@@ -256,6 +256,7 @@ export default async function HabitsPage() {
                             value={habit.completedToday ? "undo" : "complete"}
                           />
                           <Button
+                            type="submit"
                             variant={habit.completedToday ? "outline" : "default"}
                           >
                             {habit.completedToday ? "Undo today" : "Mark done"}
