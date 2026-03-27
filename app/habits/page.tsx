@@ -4,9 +4,10 @@ import { Check, Flame, Plus, Repeat2 } from "lucide-react";
 import { auth } from "@/auth";
 import { toggleHabitCheckInAction } from "@/app/habits/actions";
 import { AppSidebar } from "@/components/app-sidebar";
+import { HabitCheckInButton } from "@/components/habit-check-in-button";
 import { HabitCreateForm } from "@/components/habit-create-form";
 import { HabitPresetIcon } from "@/components/habit-preset-icon";
-import { Button } from "@/components/ui/button";
+import type { CelebrationSoundPreference } from "@/lib/celebration-sound";
 import { cn } from "@/lib/utils";
 import {
   computeHabitStreak,
@@ -39,6 +40,7 @@ export default async function HabitsPage() {
       id: true,
       email: true,
       name: true,
+      celebrationSound: true,
       hasCompletedTimetableOnboarding: true,
       timetable: true,
       habits: {
@@ -99,6 +101,7 @@ export default async function HabitsPage() {
   const totalHabits = habits.length;
   const scheduledTodayCount = habits.filter((habit) => habit.scheduledToday).length;
   const completedTodayCount = habits.filter((habit) => habit.completedToday).length;
+  const celebrationSound = user.celebrationSound as CelebrationSoundPreference;
 
   return (
     <main className="flex min-h-screen w-full flex-col bg-background lg:flex-row">
@@ -247,21 +250,13 @@ export default async function HabitsPage() {
                       </div>
 
                       {habit.scheduledToday ? (
-                        <form action={toggleHabitCheckInAction}>
-                          <input type="hidden" name="habitId" value={habit.id} />
-                          <input type="hidden" name="dateKey" value={todayDateKey} />
-                          <input
-                            type="hidden"
-                            name="intent"
-                            value={habit.completedToday ? "undo" : "complete"}
-                          />
-                          <Button
-                            type="submit"
-                            variant={habit.completedToday ? "outline" : "default"}
-                          >
-                            {habit.completedToday ? "Undo today" : "Mark done"}
-                          </Button>
-                        </form>
+                        <HabitCheckInButton
+                          celebrationSound={celebrationSound}
+                          dateKey={todayDateKey}
+                          habitId={habit.id}
+                          isCompletedToday={habit.completedToday}
+                          toggleHabitCheckInAction={toggleHabitCheckInAction}
+                        />
                       ) : null}
                     </div>
 
