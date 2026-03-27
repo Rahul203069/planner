@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
+  CheckSquare,
   LayoutDashboard,
   LogOut,
   PanelLeftClose,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/planner", label: "Planner", icon: CalendarDays },
+  { href: "/habits", label: "Habits", icon: CheckSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
