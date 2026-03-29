@@ -52,6 +52,8 @@ type PlannerQuickAddFormProps = {
     failureReason: null;
     startMinutes: number;
     durationMinutes: number;
+    pausedAtMinute: null;
+    breaks: [];
   }) => void;
   onOptimisticRemove: (taskId: string) => void;
 };
@@ -207,6 +209,8 @@ export function PlannerQuickAddForm({
         failureReason: null,
         startMinutes,
         durationMinutes: endMinutes - startMinutes,
+        pausedAtMinute: null,
+        breaks: [],
       };
 
       onOptimisticAdd(optimisticTask);
@@ -346,8 +350,9 @@ export function PlannerQuickAddForm({
           <DialogHeader>
             <DialogTitle>Class overlap detected</DialogTitle>
             <DialogDescription>
-              This task overlaps with "{pendingOverlap?.title}". You may have skipped
-              that class, so continue only if you still want to schedule this task.
+              This task overlaps with &quot;{pendingOverlap?.title}&quot;. You may
+              have skipped that class, so continue only if you still want to schedule
+              this task.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
