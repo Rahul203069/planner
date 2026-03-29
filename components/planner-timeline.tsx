@@ -15,6 +15,13 @@ type TimelineClassBlock = {
   failureReason?: string | null;
 };
 
+type TimelineBreakBlock = {
+  id: string;
+  title: string;
+  startMinutes: number;
+  durationMinutes: number;
+};
+
 type TimelineSlot = {
   value: string;
   label: string;
@@ -67,6 +74,7 @@ function getCurrentMinutesInIndia() {
 }
 
 type PlannerTimelineProps = {
+  breakBlocks: TimelineBreakBlock[];
   classBlocks: TimelineClassBlock[];
   dayName: string;
   isCurrentDay: boolean;
@@ -74,6 +82,7 @@ type PlannerTimelineProps = {
 };
 
 export function PlannerTimeline({
+  breakBlocks,
   classBlocks,
   dayName,
   isCurrentDay,
@@ -113,6 +122,10 @@ export function PlannerTimeline({
           <span className="inline-flex items-center gap-2 rounded-full border border-border/70 px-3 py-1">
             <Sparkles className="size-3.5" />
             Saved tasks
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/70 px-3 py-1">
+            <div className="h-2 w-6 rounded-full bg-amber-500/70" />
+            Breaks
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-border/70 px-3 py-1">
             <Clock3 className="size-3.5" />
@@ -201,6 +214,25 @@ export function PlannerTimeline({
                   </p>
                 ) : null}
               </div>
+            ))}
+
+            {breakBlocks.map((block) => (
+              <div
+                key={block.id}
+                className="pointer-events-none absolute left-[5.9rem] right-7 z-10 overflow-hidden rounded-full border border-amber-500/40 bg-amber-500/45 shadow-sm shadow-amber-500/20"
+                style={{
+                  top: `${(block.startMinutes / 60) * HOUR_HEIGHT + 12}px`,
+                  height: `${Math.max(
+                    6,
+                    (block.durationMinutes / 60) * HOUR_HEIGHT - 8
+                  )}px`,
+                }}
+                title={`${block.title} (${formatMinutesToTwelveHour(
+                  block.startMinutes
+                )} - ${formatMinutesToTwelveHour(
+                  block.startMinutes + block.durationMinutes
+                )})`}
+              />
             ))}
 
             {classBlocks.length === 0 ? (

@@ -8,6 +8,7 @@ import {
   Clock3,
   Filter,
   NotebookPen,
+  PauseCircle,
   PlayCircle,
   Plus,
   Timer,
@@ -37,6 +38,12 @@ type PlannerTask = {
   failureReason: string | null;
   startMinutes: number;
   durationMinutes: number;
+  pausedAtMinute: number | null;
+  breaks: {
+    id: string;
+    startMinutes: number;
+    endMinutes: number | null;
+  }[];
 };
 
 type TimelineBlock = {
@@ -49,6 +56,13 @@ type TimelineBlock = {
   type: "class" | "task";
   status?: "OPEN" | "COMPLETED" | "FAILED";
   failureReason?: string | null;
+};
+
+type TimelineBreakBlock = {
+  id: string;
+  title: string;
+  startMinutes: number;
+  durationMinutes: number;
 };
 
 type OccupiedRange = {
@@ -79,10 +93,12 @@ type PlannerWorkspaceProps = {
   dayName: string;
   deleteTaskAction: (formData: FormData) => Promise<void>;
   isSelectedDateToday: boolean;
+  pauseTaskAction: (formData: FormData) => Promise<void>;
   selectedDateLabel: string;
   tasks: PlannerTask[];
   timeSlots: TimelineSlot[];
   extendTaskDurationAction: (formData: FormData) => Promise<void>;
+  unpauseTaskAction: (formData: FormData) => Promise<void>;
   updateTaskStatusAction: (formData: FormData) => Promise<void>;
 };
 
@@ -207,6 +223,15 @@ function optimisticReducer(tasks: PlannerTask[], action: OptimisticAction) {
             ...task,
             status: action.status,
             failureReason: action.failureReason,
+            pausedAtMinute: action.status === "OPEN" ? task.pausedAtMinute : null,
+            breaks:
+              action.status === "OPEN"
+                ? task.breaks
+                : task.breaks.map((taskBreak) =>
+                    taskBreak.endMinutes === null
+                      ? { ...taskBreak, endMinutes: taskBreak.startMinutes }
+                      : taskBreak
+                  ),
           }
         : task
     );
@@ -231,10 +256,12 @@ export function PlannerWorkspace({
   dayName,
   deleteTaskAction,
   isSelectedDateToday,
+  pauseTaskAction,
   selectedDateLabel,
   extendTaskDurationAction,
   tasks,
   timeSlots,
+  unpauseTaskAction,
   updateTaskStatusAction,
 }: PlannerWorkspaceProps) {
   const [optimisticTasks, updateOptimisticTasks] = React.useOptimistic(
@@ -285,6 +312,31 @@ export function PlannerWorkspace({
     [optimisticTasks]
   );
 
+  const breakBlocks = React.useMemo<TimelineBreakBlock[]>(
+    () =>
+      optimisticTasks.flatMap((task) =>
+        task.breaks.flatMap((taskBreak) => {
+          const endMinutes =
+            taskBreak.endMinutes ??
+            (task.pausedAtMinute !== null ? currentMinutes : null);
+
+          if (endMinutes === null || endMinutes <= taskBreak.startMinutes) {
+            return [];
+          }
+
+          return [
+            {
+              id: taskBreak.id,
+              title: `${task.title} break`,
+              startMinutes: taskBreak.startMinutes,
+              durationMinutes: endMinutes - taskBreak.startMinutes,
+            },
+          ];
+        })
+      ),
+    [currentMinutes, optimisticTasks]
+  );
+
   const visibleTasks = React.useMemo(() => {
     if (activeFilter === "All") {
       return optimisticTasks;
@@ -326,7 +378,12 @@ export function PlannerWorkspace({
     () =>
       isSelectedDateToday
         ? optimisticTasks.find((task) => {
-            const endMinutes = task.startMinutes + task.durationMinutes;
+            const activeBreakMinutes =
+              task.pausedAtMinute !== null
+                ? Math.max(0, currentMinutes - task.pausedAtMinute)
+                : 0;
+            const endMinutes =
+              task.startMinutes + task.durationMinutes + activeBreakMinutes;
 
             return (
               task.status === "OPEN" &&
@@ -345,6 +402,46 @@ export function PlannerWorkspace({
       ),
     [currentMinutes, optimisticTasks]
   );
+
+  const activeTaskBreakMinutes = React.useMemo(() => {
+    if (!activeTask) {
+      return 0;
+    }
+
+    return activeTask.breaks.reduce((sum, taskBreak) => {
+      const breakEnd =
+        taskBreak.endMinutes ??
+        (activeTask.pausedAtMinute !== null ? currentMinutes : taskBreak.startMinutes);
+
+      return breakEnd > taskBreak.startMinutes
+        ? sum + (breakEnd - taskBreak.startMinutes)
+        : sum;
+    }, 0);
+  }, [activeTask, currentMinutes]);
+
+  const activeTaskWorkedMinutes = React.useMemo(() => {
+    if (!activeTask) {
+      return 0;
+    }
+
+    const elapsedSinceStart = Math.max(0, currentMinutes - activeTask.startMinutes);
+    return Math.max(0, elapsedSinceStart - activeTaskBreakMinutes);
+  }, [activeTask, activeTaskBreakMinutes, currentMinutes]);
+
+  const activeTaskRemainingSeconds = React.useMemo(() => {
+    if (!activeTask) {
+      return 0;
+    }
+
+    const workedSeconds = activeTaskWorkedMinutes * 60;
+    const totalSeconds = activeTask.durationMinutes * 60;
+
+    if (activeTask.pausedAtMinute !== null) {
+      return Math.max(0, totalSeconds - workedSeconds);
+    }
+
+    return Math.max(0, totalSeconds - workedSeconds - (currentSeconds % 60));
+  }, [activeTask, activeTaskWorkedMinutes, currentSeconds]);
 
   return (
     <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.5fr)]">
@@ -421,10 +518,15 @@ export function PlannerWorkspace({
               visibleTasks.map((task) => {
                 const CategoryIcon = getCategoryIcon(task.category);
                 const categoryLabel = getCategoryLabel(task.category);
+                const activeBreakMinutes =
+                  task.pausedAtMinute !== null
+                    ? Math.max(0, currentMinutes - task.pausedAtMinute)
+                    : 0;
                 const isTaskActive =
                   task.status === "OPEN" &&
                   currentMinutes >= task.startMinutes &&
-                  currentMinutes < task.startMinutes + task.durationMinutes;
+                  currentMinutes <
+                    task.startMinutes + task.durationMinutes + activeBreakMinutes;
 
                 return (
                   <div
@@ -558,6 +660,7 @@ export function PlannerWorkspace({
 
       <div className="space-y-5">
         <PlannerTimeline
+          breakBlocks={breakBlocks}
           classBlocks={[...classBlocks, ...taskBlocks]}
           dayName={dayName}
           isCurrentDay={isSelectedDateToday}
@@ -583,11 +686,17 @@ export function PlannerWorkspace({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="inline-flex size-10 items-center justify-center rounded-full bg-primary/12 text-primary">
-                        <PlayCircle className="size-5" />
+                        {activeTask.pausedAtMinute !== null ? (
+                          <PauseCircle className="size-5" />
+                        ) : (
+                          <PlayCircle className="size-5" />
+                        )}
                       </span>
                       <div>
                         <p className="text-sm font-semibold text-foreground">
-                          {getCategoryLabel(activeTask.category)} task in progress
+                          {activeTask.pausedAtMinute !== null
+                            ? `${getCategoryLabel(activeTask.category)} task is paused`
+                            : `${getCategoryLabel(activeTask.category)} task in progress`}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {formatMinutesToTwelveHour(activeTask.startMinutes)} -{" "}
@@ -596,32 +705,119 @@ export function PlannerWorkspace({
                           )}
                         </p>
                         <p className="mt-2 font-mono text-lg font-semibold tracking-[0.18em] text-primary">
-                          {formatDurationClock(
-                            activeTask.startMinutes * 60 +
-                              activeTask.durationMinutes * 60 -
-                              currentSeconds
-                          )}
+                          {formatDurationClock(activeTaskRemainingSeconds)}
                         </p>
                       </div>
                     </div>
-                    <span className="rounded-full bg-primary/12 px-3 py-1 text-xs font-medium text-primary">
-                      Live now
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-primary/12 px-3 py-1 text-xs font-medium text-primary">
+                        {activeTask.pausedAtMinute !== null ? "On break" : "Live now"}
+                      </span>
+                      <Button
+                        variant={activeTask.pausedAtMinute !== null ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          const currentTask = activeTask;
+
+                          if (currentTask.pausedAtMinute !== null) {
+                            const breakStart = currentTask.pausedAtMinute;
+                            const breakDuration = Math.max(
+                              1,
+                              currentMinutes - breakStart
+                            );
+
+                            updateOptimisticTasks({
+                              type: "replace",
+                              tasks: optimisticTasks.map((task) =>
+                                task.id === currentTask.id
+                                  ? {
+                                      ...task,
+                                      pausedAtMinute: null,
+                                      durationMinutes:
+                                        task.durationMinutes + breakDuration,
+                                      breaks: task.breaks.map((taskBreak) =>
+                                        taskBreak.endMinutes === null &&
+                                        taskBreak.startMinutes === breakStart
+                                          ? { ...taskBreak, endMinutes: currentMinutes }
+                                          : taskBreak
+                                      ),
+                                    }
+                                  : task
+                              ),
+                            });
+
+                            const formData = new FormData();
+                            formData.set("taskId", currentTask.id);
+
+                            void unpauseTaskAction(formData).catch(() => {
+                              updateOptimisticTasks({
+                                type: "replace",
+                                tasks: optimisticTasks,
+                              });
+                              toast.error(`Could not resume "${currentTask.title}".`);
+                            });
+
+                            return;
+                          }
+
+                          const optimisticBreakId = `temp-break-${currentTask.id}-${currentMinutes}`;
+
+                          updateOptimisticTasks({
+                            type: "replace",
+                            tasks: optimisticTasks.map((task) =>
+                              task.id === currentTask.id
+                                ? {
+                                    ...task,
+                                    pausedAtMinute: currentMinutes,
+                                    breaks: [
+                                      ...task.breaks,
+                                      {
+                                        id: optimisticBreakId,
+                                        startMinutes: currentMinutes,
+                                        endMinutes: null,
+                                      },
+                                    ],
+                                  }
+                                : task
+                            ),
+                          });
+
+                          const formData = new FormData();
+                          formData.set("taskId", currentTask.id);
+
+                          void pauseTaskAction(formData).catch(() => {
+                            updateOptimisticTasks({
+                              type: "replace",
+                              tasks: optimisticTasks,
+                            });
+                            toast.error(`Could not pause "${currentTask.title}".`);
+                          });
+                        }}
+                      >
+                        {activeTask.pausedAtMinute !== null ? (
+                          <>
+                            <PlayCircle className="size-4" />
+                            Unpause
+                          </>
+                        ) : (
+                          <>
+                            <PauseCircle className="size-4" />
+                            Pause
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
                     <Timer className="size-5 text-primary" />
                     <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       Time Left
                     </p>
                     <p className="mt-2 text-base font-semibold text-foreground">
-                      {formatDuration(
-                        activeTask.startMinutes +
-                          activeTask.durationMinutes -
-                          currentMinutes
-                      )}
+                      {formatDuration(Math.max(0, Math.ceil(activeTaskRemainingSeconds / 60)))}
                     </p>
                   </div>
                   <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
@@ -630,7 +826,7 @@ export function PlannerWorkspace({
                       Elapsed
                     </p>
                     <p className="mt-2 text-base font-semibold text-foreground">
-                      {formatDuration(currentMinutes - activeTask.startMinutes)}
+                      {formatDuration(activeTaskWorkedMinutes)}
                     </p>
                   </div>
                   <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
@@ -640,6 +836,15 @@ export function PlannerWorkspace({
                     </p>
                     <p className="mt-2 text-base font-semibold text-foreground">
                       {formatDuration(activeTask.durationMinutes)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                    <PauseCircle className="size-5 text-primary" />
+                    <p className="mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Breaks
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-foreground">
+                      {formatDuration(activeTaskBreakMinutes)}
                     </p>
                   </div>
                 </div>

@@ -42,6 +42,12 @@ type TimelineBlock = {
   type: "class" | "task";
 };
 
+type TaskBreak = {
+  id: string;
+  startMinutes: number;
+  endMinutes: number | null;
+};
+
 type ActionState = {
   status: "idle" | "success" | "error";
   message: string;
@@ -55,6 +61,8 @@ type PlannerTask = {
   failureReason: string | null;
   startMinutes: number;
   durationMinutes: number;
+  pausedAtMinute: number | null;
+  breaks: TaskBreak[];
 };
 
 type OccupiedRange = {
@@ -325,6 +333,13 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       userId,
       scheduledDate: dateKey,
     },
+    include: {
+      breaks: {
+        orderBy: {
+          startMinutes: "asc",
+        },
+      },
+    },
     orderBy: {
       startMinutes: "asc",
     },
@@ -365,6 +380,30 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       throw new Error("Add a short reason before marking this task as failed.");
     }
 
+    const existingTask = await prisma.task.findUnique({
+      where: {
+        id: taskId,
+        userId,
+      },
+      include: {
+        breaks: {
+          where: {
+            endMinutes: null,
+          },
+          orderBy: {
+            startMinutes: "desc",
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!existingTask) {
+      throw new Error("Task not found.");
+    }
+
+    const currentMinutes = getCurrentMinutesInIndia();
+
     await prisma.task.update({
       where: {
         id: taskId,
@@ -374,8 +413,20 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
         status: nextStatus as "OPEN" | "COMPLETED" | "FAILED",
         failureReason:
           nextStatus === "FAILED" ? normalizedFailureReason : null,
+        pausedAtMinute: nextStatus === "OPEN" ? existingTask.pausedAtMinute : null,
       },
     });
+
+    if (nextStatus !== "OPEN" && existingTask.breaks[0]) {
+      await prisma.taskBreak.update({
+        where: {
+          id: existingTask.breaks[0].id,
+        },
+        data: {
+          endMinutes: currentMinutes,
+        },
+      });
+    }
 
     revalidatePath("/planner");
   }
@@ -442,6 +493,139 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       },
       data: {
         durationMinutes: nextDuration,
+      },
+    });
+
+    revalidatePath("/planner");
+  }
+
+  async function pauseTask(formData: FormData) {
+    "use server";
+
+    const taskId = formData.get("taskId");
+
+    if (typeof taskId !== "string") {
+      throw new Error("Invalid task pause request.");
+    }
+
+    if (!isSelectedDateToday) {
+      throw new Error("You can only pause tasks on the current day.");
+    }
+
+    const currentMinutes = getCurrentMinutesInIndia();
+    const existingTask = await prisma.task.findUnique({
+      where: {
+        id: taskId,
+        userId,
+      },
+      select: {
+        status: true,
+        pausedAtMinute: true,
+        startMinutes: true,
+      },
+    });
+
+    if (!existingTask) {
+      throw new Error("Task not found.");
+    }
+
+    if (existingTask.status !== "OPEN") {
+      throw new Error("Only open tasks can be paused.");
+    }
+
+    if (existingTask.pausedAtMinute !== null) {
+      throw new Error("This task is already paused.");
+    }
+
+    if (currentMinutes < existingTask.startMinutes) {
+      throw new Error("This task has not started yet.");
+    }
+
+    await prisma.task.update({
+      where: {
+        id: taskId,
+        userId,
+      },
+      data: {
+        pausedAtMinute: currentMinutes,
+        breaks: {
+          create: {
+            startMinutes: currentMinutes,
+          },
+        },
+      },
+    });
+
+    revalidatePath("/planner");
+  }
+
+  async function unpauseTask(formData: FormData) {
+    "use server";
+
+    const taskId = formData.get("taskId");
+
+    if (typeof taskId !== "string") {
+      throw new Error("Invalid task unpause request.");
+    }
+
+    if (!isSelectedDateToday) {
+      throw new Error("You can only unpause tasks on the current day.");
+    }
+
+    const currentMinutes = getCurrentMinutesInIndia();
+    const existingTask = await prisma.task.findUnique({
+      where: {
+        id: taskId,
+        userId,
+      },
+      include: {
+        breaks: {
+          where: {
+            endMinutes: null,
+          },
+          orderBy: {
+            startMinutes: "desc",
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!existingTask) {
+      throw new Error("Task not found.");
+    }
+
+    if (existingTask.status !== "OPEN") {
+      throw new Error("Only open tasks can be unpaused.");
+    }
+
+    if (existingTask.pausedAtMinute === null || existingTask.breaks.length === 0) {
+      throw new Error("This task is not paused.");
+    }
+
+    if (currentMinutes <= existingTask.pausedAtMinute) {
+      throw new Error("Break end must be after break start.");
+    }
+
+    const breakDuration = currentMinutes - existingTask.pausedAtMinute;
+
+    await prisma.task.update({
+      where: {
+        id: taskId,
+        userId,
+      },
+      data: {
+        pausedAtMinute: null,
+        durationMinutes: existingTask.durationMinutes + breakDuration,
+      },
+    });
+
+    await prisma.taskBreak.update({
+      where: {
+        id: existingTask.breaks[0].id,
+      },
+      data: {
+        endMinutes: currentMinutes,
       },
     });
 
@@ -616,6 +800,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
             deleteTaskAction={deleteTask}
             extendTaskDurationAction={extendTaskDuration}
             isSelectedDateToday={isSelectedDateToday}
+            pauseTaskAction={pauseTask}
             selectedDateLabel={dateLabel}
             tasks={tasks.map((task: PlannerTask) => ({
               id: task.id,
@@ -625,11 +810,18 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
               failureReason: task.failureReason,
               startMinutes: task.startMinutes,
               durationMinutes: task.durationMinutes,
+              pausedAtMinute: task.pausedAtMinute,
+              breaks: task.breaks.map((taskBreak) => ({
+                id: taskBreak.id,
+                startMinutes: taskBreak.startMinutes,
+                endMinutes: taskBreak.endMinutes,
+              })),
             }))}
             timeSlots={timeSlots.map((slot) => ({
               value: slot,
               label: formatTimeValue(slot),
             }))}
+            unpauseTaskAction={unpauseTask}
             updateTaskStatusAction={updateTaskStatus}
           />
         </div>
