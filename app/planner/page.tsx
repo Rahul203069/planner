@@ -643,6 +643,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
     const startTime = formData.get("startTime");
     const endTime = formData.get("endTime");
     const allowClassOverlap = formData.get("allowClassOverlap") === "true";
+    const allowPastTime = formData.get("allowPastTime") === "true";
 
     if (
       typeof title !== "string" ||
@@ -670,10 +671,14 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
       };
     }
 
-    if (isSelectedDateToday && startMinutes <= getCurrentMinutesInIndia()) {
+    if (
+      isSelectedDateToday &&
+      startMinutes <= getCurrentMinutesInIndia() &&
+      !allowPastTime
+    ) {
       return {
         status: "error",
-        message: "Choose a future time slot after the current time.",
+        message: "This task starts in the past. Confirm if you already began working on it.",
       };
     }
 

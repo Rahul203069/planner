@@ -60,6 +60,17 @@ type PlannerQuickAddFormProps = {
 
 type OptimisticTask = Parameters<PlannerQuickAddFormProps["onOptimisticAdd"]>[0];
 
+type PendingConfirmation =
+  | {
+      type: "class-overlap";
+      overlap: OccupiedRange;
+    }
+  | {
+      type: "past-time";
+      currentTimeLabel: string;
+      selectedTimeLabel: string;
+    };
+
 const categoryIcons = {
   briefcase: BriefcaseBusiness,
   brain: Brain,
@@ -118,6 +129,16 @@ function getCurrentMinutesInIndia() {
   return hour * 60 + minute;
 }
 
+function formatMinutesToTwelveHour(totalMinutes: number): string {
+  const normalizedMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalizedMinutes / 60);
+  const minutes = normalizedMinutes % 60;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 || 12;
+
+  return `${displayHour}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
+
 function cloneFormData(source: FormData) {
   const next = new FormData();
 
@@ -138,14 +159,27 @@ export function PlannerQuickAddForm({
 }: PlannerQuickAddFormProps) {
   const formRef = React.useRef<HTMLFormElement | null>(null);
   const [isPending, startTransition] = React.useTransition();
-  const [pendingOverlap, setPendingOverlap] = React.useState<OccupiedRange | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] =
+    React.useState<PendingConfirmation | null>(null);
   const [queuedFormData, setQueuedFormData] = React.useState<FormData | null>(null);
 
-  function submitQuickAdd(formData: FormData, allowClassOverlap: boolean) {
-    if (allowClassOverlap) {
+  function submitQuickAdd(
+    formData: FormData,
+    overrides?: {
+      allowClassOverlap?: boolean;
+      allowPastTime?: boolean;
+    }
+  ) {
+    if (overrides?.allowClassOverlap) {
       formData.set("allowClassOverlap", "true");
     } else {
       formData.delete("allowClassOverlap");
+    }
+
+    if (overrides?.allowPastTime) {
+      formData.set("allowPastTime", "true");
+    } else {
+      formData.delete("allowPastTime");
     }
 
     const title = formData.get("title");
@@ -163,14 +197,20 @@ export function PlannerQuickAddForm({
 
     const startMinutes = parseTimeToMinutes(startTime);
     const endMinutes = parseTimeToMinutes(endTime);
+    const currentMinutes = getCurrentMinutesInIndia();
 
     if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
       toast.error("End time must be after start time.");
       return;
     }
 
-    if (isSelectedDateToday && startMinutes <= getCurrentMinutesInIndia()) {
-      toast.error("Choose a future time slot after the current time.");
+    if (isSelectedDateToday && startMinutes <= currentMinutes && !overrides?.allowPastTime) {
+      setPendingConfirmation({
+        type: "past-time",
+        currentTimeLabel: formatMinutesToTwelveHour(currentMinutes),
+        selectedTimeLabel: formatMinutesToTwelveHour(startMinutes),
+      });
+      setQueuedFormData(cloneFormData(formData));
       return;
     }
 
@@ -186,8 +226,11 @@ export function PlannerQuickAddForm({
         return;
       }
 
-      if (!allowClassOverlap) {
-        setPendingOverlap(overlappingRange);
+      if (!overrides?.allowClassOverlap) {
+        setPendingConfirmation({
+          type: "class-overlap",
+          overlap: overlappingRange,
+        });
         setQueuedFormData(cloneFormData(formData));
         return;
       }
@@ -237,7 +280,7 @@ export function PlannerQuickAddForm({
   }
 
   function handleQuickAdd(formData: FormData) {
-    submitQuickAdd(formData, false);
+    submitQuickAdd(formData);
   }
 
   return (
@@ -338,21 +381,25 @@ export function PlannerQuickAddForm({
       </form>
 
       <Dialog
-        open={pendingOverlap !== null}
+        open={pendingConfirmation !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setPendingOverlap(null);
+            setPendingConfirmation(null);
             setQueuedFormData(null);
           }
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Class overlap detected</DialogTitle>
+            <DialogTitle>
+              {pendingConfirmation?.type === "past-time"
+                ? "This task starts in the past"
+                : "Class overlap detected"}
+            </DialogTitle>
             <DialogDescription>
-              This task overlaps with &quot;{pendingOverlap?.title}&quot;. You may
-              have skipped that class, so continue only if you still want to schedule
-              this task.
+              {pendingConfirmation?.type === "past-time"
+                ? `This task starts at ${pendingConfirmation.selectedTimeLabel}, and the current time is ${pendingConfirmation.currentTimeLabel}. Continue only if you already started the work and forgot to log it.`
+                : `This task overlaps with "${pendingConfirmation?.overlap.title}". You may have skipped that class, so continue only if you still want to schedule this task.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -360,7 +407,7 @@ export function PlannerQuickAddForm({
               type="button"
               variant="outline"
               onClick={() => {
-                setPendingOverlap(null);
+                setPendingConfirmation(null);
                 setQueuedFormData(null);
               }}
             >
@@ -374,9 +421,13 @@ export function PlannerQuickAddForm({
                 }
 
                 const nextFormData = cloneFormData(queuedFormData);
-                setPendingOverlap(null);
+                const nextConfirmation = pendingConfirmation;
+                setPendingConfirmation(null);
                 setQueuedFormData(null);
-                submitQuickAdd(nextFormData, true);
+                submitQuickAdd(nextFormData, {
+                  allowClassOverlap: nextConfirmation?.type === "class-overlap",
+                  allowPastTime: nextConfirmation?.type === "past-time",
+                });
               }}
             >
               Add anyway
