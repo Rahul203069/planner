@@ -71,6 +71,16 @@ type PendingConfirmation =
       selectedTimeLabel: string;
     };
 
+type ConfirmationOverrides = {
+  allowClassOverlap?: boolean;
+  allowPastTime?: boolean;
+};
+
+type QueuedSubmission = {
+  formData: FormData;
+  overrides: ConfirmationOverrides;
+};
+
 const categoryIcons = {
   briefcase: BriefcaseBusiness,
   brain: Brain,
@@ -161,14 +171,11 @@ export function PlannerQuickAddForm({
   const [isPending, startTransition] = React.useTransition();
   const [pendingConfirmation, setPendingConfirmation] =
     React.useState<PendingConfirmation | null>(null);
-  const [queuedFormData, setQueuedFormData] = React.useState<FormData | null>(null);
+  const [queuedSubmission, setQueuedSubmission] = React.useState<QueuedSubmission | null>(null);
 
   function submitQuickAdd(
     formData: FormData,
-    overrides?: {
-      allowClassOverlap?: boolean;
-      allowPastTime?: boolean;
-    }
+    overrides: ConfirmationOverrides = {}
   ) {
     if (overrides?.allowClassOverlap) {
       formData.set("allowClassOverlap", "true");
@@ -210,7 +217,10 @@ export function PlannerQuickAddForm({
         currentTimeLabel: formatMinutesToTwelveHour(currentMinutes),
         selectedTimeLabel: formatMinutesToTwelveHour(startMinutes),
       });
-      setQueuedFormData(cloneFormData(formData));
+      setQueuedSubmission({
+        formData: cloneFormData(formData),
+        overrides: { ...overrides },
+      });
       return;
     }
 
@@ -231,7 +241,10 @@ export function PlannerQuickAddForm({
           type: "class-overlap",
           overlap: overlappingRange,
         });
-        setQueuedFormData(cloneFormData(formData));
+        setQueuedSubmission({
+          formData: cloneFormData(formData),
+          overrides: { ...overrides },
+        });
         return;
       }
     }
@@ -385,7 +398,7 @@ export function PlannerQuickAddForm({
         onOpenChange={(open) => {
           if (!open) {
             setPendingConfirmation(null);
-            setQueuedFormData(null);
+            setQueuedSubmission(null);
           }
         }}
       >
@@ -408,7 +421,7 @@ export function PlannerQuickAddForm({
               variant="outline"
               onClick={() => {
                 setPendingConfirmation(null);
-                setQueuedFormData(null);
+                setQueuedSubmission(null);
               }}
             >
               Cancel
@@ -416,18 +429,23 @@ export function PlannerQuickAddForm({
             <Button
               type="button"
               onClick={() => {
-                if (!queuedFormData) {
+                if (!queuedSubmission || !pendingConfirmation) {
                   return;
                 }
 
-                const nextFormData = cloneFormData(queuedFormData);
-                const nextConfirmation = pendingConfirmation;
+                const nextOverrides: ConfirmationOverrides = {
+                  ...queuedSubmission.overrides,
+                  allowClassOverlap:
+                    queuedSubmission.overrides.allowClassOverlap ||
+                    pendingConfirmation.type === "class-overlap",
+                  allowPastTime:
+                    queuedSubmission.overrides.allowPastTime ||
+                    pendingConfirmation.type === "past-time",
+                };
+                const nextFormData = cloneFormData(queuedSubmission.formData);
                 setPendingConfirmation(null);
-                setQueuedFormData(null);
-                submitQuickAdd(nextFormData, {
-                  allowClassOverlap: nextConfirmation?.type === "class-overlap",
-                  allowPastTime: nextConfirmation?.type === "past-time",
-                });
+                setQueuedSubmission(null);
+                submitQuickAdd(nextFormData, nextOverrides);
               }}
             >
               Add anyway
